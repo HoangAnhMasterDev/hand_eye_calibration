@@ -192,10 +192,10 @@ def func():
     
     path = os.path.dirname(__file__)
 
-    # 亚像素角点查找准则
+    # Sub-pixel corner detection criteria
     criteria = (cv2.TERM_CRITERIA_MAX_ITER | cv2.TERM_CRITERIA_EPS, 30, 0.001)
 
-    # 准备标定板的3D点坐标
+    # Prepare the 3D coordinates of the calibration board points
     objp = np.zeros((XX * YY, 3), np.float32)
     objp[:, :2] = np.mgrid[0:XX, 0:YY].T.reshape(-1, 2)
     objp = L * objp
@@ -228,30 +228,29 @@ def func():
 ```
 
 
+The above code iterates through the collected calibration board images, detects the chessboard corners one by one, and stores them in an array.
 
-上面代码遍历采集的标定板图像，逐一获取棋盘格角点并放到数组中去
-
-#### 2.相机标定
+#### 2.Camera Calibration
 
 **compute_in_hand.py | compute_to_hand.py**
 
 ```python
 
 
-# 标定，得到图案在相机坐标系下的位姿
+# Calibration to obtain the pose of the pattern in the camera coordinate system
 ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(obj_points, img_points, size, None, None)
 
 ```
 
 
 
-- 使用OpenCV的 `calibrateCamera` 函数进行相机标定，计算相机的内参数和畸变系数。
+- 使用OpenCV的 `calibrateCamera` The function performs camera calibration to compute the camera’s intrinsic parameters and distortion coefficients。
 
-- `rvecs` 和 `tvecs` 分别是每张图像的旋转向量和平移向量，表示**标定板在相机坐标系下的位姿**。
+- `rvecs` 和 `tvecs` It also provides, for each image, a rotation vector and a translation vector, representing the**pose of the calibration board in the camera coordinate system**。
 
   
 
-#### 3.处理机械臂位姿数据
+#### 3.Processing robot arm pose data
 
 **compute_in_hand.py**
 
@@ -259,7 +258,7 @@ ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(obj_points, img_points, size,
 poses_main(file_path)
 ```
 
-将机械臂末端位姿数据转化为**机械臂末端坐标系**相对于**基坐标系**的旋转矩阵和平移向量
+Convert the end-effector pose data into the rotation matrix and translation vector of the robot end-effector coordinate system relative to the base coordinate system.
 
 **compute_to_hand.py**
 
@@ -267,11 +266,10 @@ poses_main(file_path)
 poses2_main(file_path)
 ```
 
-将机械臂末端位姿数据转化为**基坐标系**相对于**机械臂末端坐标系**的旋转矩阵和平移向量
+Convert the end-effector pose data into the rotation matrix and translation vector of the base coordinate system relative to the robot end-effector coordinate system.
 
 
-
-####  4.手眼标定计算
+####  4.Hand-eye calibration calculation
 
 ```python
 R, t = cv2.calibrateHandEye(R_tool, t_tool, rvecs, tvecs, cv2.CALIB_HAND_EYE_TSAI)
@@ -280,7 +278,7 @@ return R,t
 
 ```
 
-- 使用OpenCV的 `calibrateHandEye` 函数进行手眼标定
+- 使用OpenCV的 `calibrateHandEye` The function performs hand-eye calibration.
 
   - 在compute_in_hand.py中计算**相机**相对于**机械臂末端**的旋转矩阵 **R_cam2end**和平移向量 **T_cam2end**。
 
@@ -314,17 +312,17 @@ return R,t
 
     
 
-- 采用了 `CALIB_HAND_EYE_TSAI` 方法，这是常用的手眼标定算法
+- 采用了 `CALIB_HAND_EYE_TSAI` Method: This is a commonly used hand-eye calibration algorithm
 
 
 
-### `save_poses.py` 关键代码解释
+### `save_poses.py` Key code explanation
 
-#### 1. **定义欧拉角转换为旋转矩阵的函数**
+#### 1. **Define a function to convert Euler angles to a rotation matrix**
 
 ```python
 def euler_angles_to_rotation_matrix(rx, ry, rz):
-    # 计算旋转矩阵
+    # Compute the rotation matrix
     Rx = np.array([[1, 0, 0],
                    [0, np.cos(rx), -np.sin(rx)],
                    [0, np.sin(rx), np.cos(rx)]])
@@ -343,10 +341,10 @@ def euler_angles_to_rotation_matrix(rx, ry, rz):
 
 ```
 
-- 定义了将欧拉角（绕X、Y、Z轴的旋转）转换为旋转矩阵的函数。
-- 按照Z-Y-X的顺序进行旋转，并将各轴的旋转矩阵相乘得到最终的旋转矩阵 `R`。
+- A function is defined to convert Euler angles (rotations around the X, Y, and Z axes) into a rotation matrix.。
+- The rotations are applied in Z-Y-X order, and the rotation matrices for each axis are multiplied together to obtain the final rotation matrix R.
 
-#### 2. **将位姿转换为齐次变换矩阵**
+#### 2. **Convert pose to homogeneous transformation matrix**
 
 ```python
 def pose_to_homogeneous_matrix(pose):
@@ -362,11 +360,11 @@ def pose_to_homogeneous_matrix(pose):
 
 ```
 
-- 将位姿（位置和姿态）转换为4x4的齐次变换矩阵，以便进行矩阵运算。
-- 位置 `(x, y, z)` 作为平移向量，姿态 `(rx, ry, rz)` 作为旋转欧拉角。
-- 生成的齐次变换矩阵 `H` 将用于描述**机械臂末端相对于基座的旋转变换**。
+- Convert the pose (position and orientation) into a 4×4 homogeneous transformation matrix for matrix operations.
+- Position `(x, y, z)`  is used as the translation vector, and orientation `(rx, ry, rz)` as Euler rotation angles。
+- The resulting homogeneous transformation matrix H describes the rotation and translation of the robot end-effector relative to the base.
 
-#### 3. **保存多个矩阵到CSV文件**
+#### 3. **Save multiple matrices to a CSV file**
 
 ```python
 Copy codedef save_matrices_to_csv(matrices, file_name):
@@ -383,17 +381,17 @@ Copy codedef save_matrices_to_csv(matrices, file_name):
             csv_writer.writerow(row)
 ```
 
-- 将多个矩阵横向拼接成一个大矩阵，然后保存到CSV文件中。
+- Concatenate multiple matrices horizontally into a single large matrix and save it to a CSV file.。
 
-- 每个矩阵占用固定的列数，这样在读取时可以按照固定的间隔切分出单个矩阵。
+- Each matrix occupies a fixed number of columns, allowing you to split them into individual matrices at fixed intervals when reading.。
 
   
 
-## 标定过程
+## Calibration Process
 
-### 1.环境要求
+### 1.Environment Requirements
 
-#### 基础环境准备
+#### Basic Environment Setup
 
 | 项目     | 版本           |
 | :------- | :------------- |
@@ -410,7 +408,7 @@ Copy codedef save_matrices_to_csv(matrices, file_name):
 | pyrealsense2  | 2.55.1.6486 |
 | scipy         | 1.13.1      |
 
-执行下面命令在python环境中安装手眼标定程序所需要的包：
+Run the following command in your Python environment to install the packages required for the hand-eye calibration program:：
 
 ```cmd
 pip install -r requirements.txt
@@ -418,22 +416,22 @@ pip install -r requirements.txt
 
 
 
-#### 设备准备
+#### HARDWARE
 
-- 机械臂：RM75 RM65  RM63 GEN72 
-- 相机: Intel RealSense Depth Camera D435
+- ARM：RM75 RM65  RM63 GEN72 
+- CAM: Intel RealSense Depth Camera D435
 
-- 摄像头专用数据线
+- Dedicated Camera Data Cable: For stable and high-quality data transmission between the camera and computer.
 
-- 网线
+- Ethernet Cable: For connecting the robot or camera to the computer or network.
 
-- 标定板（1或2）
+- Calibration Board (1 or 2 units): Can be a rigid board with a printed pattern (checkerboard or circle grid).
 
-  1. 打印纸质标定板
+  1. Printed Paper Calibration Board
 
      ![标定板图片_00(1)](picture/标定板图片_00(1).png)
 
-  2. 淘宝上搜索“标定板棋盘格”购买
+  2. Purchase calibration board checkerboard if wanted
 
 
 
@@ -441,138 +439,136 @@ pip install -r requirements.txt
 
 
 
-### 2.标定过程
+### 2.Calibration process
 
-#### 参数配置
+#### Config 
 
-在配置文件（config.yaml）中设置标定板参数
+Set the calibration board parameters in the configuration file（config.yaml
 
 ![image-20250403064543828](picture/image-20250403064543828.png)
 
 ​		
+The configuration parameters in the file are as follows:
 
-config.yaml里的配置参数如下，有下面三个
+​    xx: Number of horizontal corners on the calibration board (number of squares along the long edge minus 1), default is 11.
+For example, if there are 12 squares along the long edge, there are 11 inner corners.
 
-​        xx:标定板的横向角点数（长边格子数减1），默认为11，例如下图长边12个格子，角点数为11
+​		YY: Number of vertical corners on the calibration board (number of squares along the short edge minus 1), default is 8.
+For example, if there are 9 squares along the short edge, there are 8 inner corners.
 
-​		YY:标定板纵向角点数（短边格子数减1），默认为8，例如下图短边9个格子，角点数为8
-
-​		L :  标定板单个方格的实际尺寸（单位：米），默认是0.03
+​		L :  Size of a single square on the calibration board (unit: meters), default is 0.03.
+This means each square is 3 cm wide in the real world.
 
 ​        ![](picture/image-20241016181226851.png)
 
 
 
-#### 眼在手上
+#### DATA COLLECTION
 
-##### 采集数据
+#####Connect the device
 
-(1).相机连接线连接**电脑**和D435相机，网线连接**电脑**和机械臂
+(1) Connect the D435 camera to the computer using the camera data cable.
 
-(2).电脑的ip和机械臂设置为同一网段
+(2) Connect the robot arm to the computer using an Ethernet cable.
 
-如果机械臂IP为192.168.1.18 ，则将电脑 ip地址设为1网段
+If the robot arm's IP address is 192.168.1.18, then the computer's IP address should be set to the same subnet, i.e., the 192.168.1.x range.
 
 ![image-20241018143659263](picture/image-20241018143659263.png)
 
-​			如果机械臂的IP为192.168.10.18，则将电脑的IP设置为10网段（参照上面设置）                                     
+​If the robot arm's IP address is 192.168.10.18, then the computer’s IP address should be set to the 192.168.10.x subnet (as described above).                                     
 
-(3).标定板放置在平面上，相机固定在机械臂末端，相机对准标定板
+(3) The calibration board is placed flat on a surface, the camera is fixed to the robot arm’s end-effector, and the camera is aimed at the calibration board.
 
-​		标定过程中，标定板是**固定放置**在机械臂工作区内的，这个固定位置需要保证安装在**机械臂末端的相机能从不同的视角**观测到它，标定板的确切位置不重要，因为不必知道其相对于机械臂基座的位姿。但是标定板在标定期间应**保持固定，不得移动**。
+​		During the calibration process, the calibration board is fixed in place within the robot arm’s workspace. This fixed position must ensure that the camera mounted on the robot’s end-effector can observe the board from different viewpoints. The exact position of the calibration board is not important because its pose relative to the robot base does not need to be known. However, the calibration board must remain stationary and must not be moved throughout the calibration.
 
-(4).运行脚本`collect_data.py`，出现一个弹窗
+(4) Run `collect_data.py`，and a popup window will appear
 
-(5).拖动机械臂末端，使呈现相机视野下的标定板清晰、完整、将光标放在弹窗上
+(5) Manually move the robot arm’s end-effector to position the calibration board clearly and fully within the camera’s field of view, then place the cursor over the popup window.
 
-​		**注意：**
+​		**Note：**
 
-- 使出现在相机视野里的**标定板**和**相机镜面**呈现**一定角度**。
+- Ensure that the calibration board and the camera lens in the camera’s field of view form a certain angle.
 
   ![image-20241101112801145](picture/image-20241101112801145.png)
 
-  下面的拍照姿势**不对**：
+  The following camera pose is incorrect:
   ![image-20241101112816914](picture/image-20241101112816914.png)
 
 ​				
 
-(6).点击键盘“s”采集数据
+(6) Press the “s” key on the keyboard to capture the data.
 
-(7)移动15-20次机械臂，重复步骤(5)(6)，采集不同机械臂姿态下的标定板图片15-20张左右
+(7) Move the robot arm 15–20 times, repeating steps (5) and (6) to capture about 15–20 images of the calibration board from different robot poses.
 
-​	**注意：**
+​	**NOTE：**
 
-​			移动**机械臂末端旋转轴**，每次旋转的角度尽量的大（大于30°）
+​			Move the robot arm’s end-effector rotation axes, making sure each rotation angle is as large as possible (greater than 30°) each time.
 
-​			确保在三个轴（X、Y、Z）上都有足够的旋转角度变化。
+​			Make sure there are sufficient rotation angle variations along all three axes (X, Y, and Z).
 
-​			（可以先绕着机械臂末端z轴旋转多个角度拍摄多副图片，然后绕着x轴旋转）
+​			(You can first rotate the robot arm’s end-effector around the Z-axis multiple times to capture several images, then rotate it around the X-axis for additional views.)
 
 ​			![WPS拼图1](picture/WPS拼图1.png)
 
-##### 计算标定结果
+##### Calculate the calibration results
 
-​		运行脚本`compute_in_hand.py`，获取标定结果
+​		Run the script `compute_in_hand.py`，to obtain the calib result
 
-​        得出**相机坐标系**相对于**机械臂末端**坐标系的**旋转矩阵**和**平移向量**
+​        Obtain the rotation matrix and translation vector of the camera coordinate system relative to the robot arm end-effector coordinate system.
 
-#### 眼在手外
+#### Eye-to-hand calibration (Eye outside hand)
 
-##### 采集数据
+##### Data collection
 
-(1).相机连接线连接**电脑**和D435相机，网线连接**电脑**和机械臂
+(1) Connect the camera cable between the computer and the D435 camera, and connect the Ethernet cable between the computer and the robot arm.
 
-(2).电脑的ip和机械臂设置为同一网段
+(2) Set the computer’s IP address and the robot arm’s IP address to the same subnet.
 
-​	如果机械臂IP为192.168.1.18 ，则将电脑 ip地址设为1网段
+​	If the robot arm’s IP address is 192.168.1.18, then set the computer’s IP address to the 192.168.1.x subnet.
 
-​    如果机械臂的IP为192.168.10.18，则将电脑的IP设置为10网段
+​  If the robot arm’s IP address is 192.168.10.18, then set the computer’s IP address to the 192.168.10.x subnet.
 
-(3).将标定板（**打印纸质较小的板子，方便固定**）**固定在机械臂末端，相机固定不动**，移动机械臂末端，使标定板出现在相机视野里
+(3) Fix the calibration board (a smaller printed paper board for easy mounting) to the robot arm’s end-effector, keep the camera stationary, and move the robot arm’s end-effector so that the calibration board appears within the camera’s field of view.
 
-​       标定过程中，标定板安装在**机械臂末端执行器上**并随机械臂移动。可以直接固定在工具法兰上或由夹具固定安装，安装的确切位置不重要，因为**不必知道标定板和末端执行器**的相对位姿。重要的是标定板在运动过程中不会出现**相对于工具法兰或夹具的位移**，它必须被良好地固定住或被夹具紧紧地抓住。建议使用由刚性材料制成的安装支架。
+​       During the calibration process, the calibration board is mounted on the robot arm’s end-effector and moves together with the arm. It can be directly fixed to the tool flange or attached using a fixture. The exact mounting position is not important because the relative pose between the calibration board and the end-effector does not need to be known. What matters is that the calibration board does not move relative to the tool flange or fixture during motion — it must be firmly fixed or tightly clamped. It is recommended to use a mounting bracket made of rigid material to ensure stability.
 
-(4).运行脚本`collect_data.py`，出现一个弹窗
+(4) Run the script collect_data.py, and a popup window will appear.
 
-(5).拖动机械臂末端，使呈现相机视野下的标定板清晰、完整、将光标放在弹窗上
+(5) Manually move the robot arm’s end-effector to position the calibration board clearly and fully within the camera’s field of view, then place the cursor over the popup window.
 
-​		**注意：**
+​		**NOTE：**
 
-​				使出现在相机视野里的标定板和相机镜面呈现一定角度。
+​				Make sure the calibration board and the camera lens in the camera’s field of view form a certain angle。
 
-(6).点击键盘“s”采集数据
+(6) Press the “s” key on the keyboard to capture the data.
 
-(7)移动15-20次机械臂，重复步骤(5)(6)，采集不同机械臂姿态下的标定板图片15-20张左右
+(7)Move the robot arm 15–20 times, repeating steps (5) and (6) to capture about 15–20 images of the calibration board from different robot poses.
 
-​			移动**机械臂末端旋转轴**，每次旋转的角度尽量的大（大于30°）
+​			Rotate the robot arm’s end-effector rotation axes, making each rotation as large as possible (greater than 30°) each time.
 
-​			确保在三个轴（X、Y、Z）上都有足够的旋转角度变化。
-
-
-
-##### 计算标定结果
-
-运行脚本`compute_to_hand.py`，获取标定结果
-
-得出**相机坐标系**相对于**机械臂基坐标系**的**旋转矩阵**和**平移向量**
+​			Ensure there is sufficient rotation variation along all three axes (X, Y, and Z).
 
 
 
-**平移向量**的单位是米
+##### Calculate Calibration Results
 
+Run the script `compute_to_hand.py`，to obtain the calibration results.
 
+Obtain the rotation matrix and translation vector of the camera coordinate system relative to the robot arm base coordinate system.
 
-#### 误差范围
+The translation vector is in units of meters.
 
-受采集到的图片的质量影响，标定结果中的平移向量与实际的差距在1cm之内。
+#### Error Range
 
-## 标定过程中可能出现的问题
+Affected by the quality of the captured images, the discrepancy between the translation vector in the calibration results and the actual value is within 1 cm.。
 
-### 问题1
+## Possible Issues During Calibration Process
 
-在计算采集到的数据时
+### Issue1
 
-即执行下面脚本时：
+When calculating the collected data,
+
+that is, when running the following scripts：
 
 ```cmd
 python compute_in_hand.py
@@ -584,50 +580,48 @@ python compute_in_hand.py
 python compute_to_hand.py
 ```
 
-可能出现下面问题
+the following problem may occur:
 
 问题描述：[ERROR:0@1.418] global calibration_handeye.cpp:335 calibrateHandEyeTsai Hand-eye calibration failed! Not enough informative motions--include larger rotations.
 
 
 
-**问题原因**：采集的图片旋转量不足，特别是缺少足够大的旋转运动。
+**Cause**：Insufficient rotational movement in the collected images, especially lacking sufficiently large rotational motions.
 
-手眼标定需要机器人在空间中执行一系列运动，以获取相机相对于机器人末端的精确关系。若机器人的运动数据中缺乏足够的旋转变化，尤其是在各个轴向上的显著旋转，标定算法就无法准确计算出手眼关系。
-
-
-
-**解决方案：**
-
-1. **增加旋转运动：**
-
-- 在数据采集过程中，让机器人执行更大的旋转运动。确保在三个轴（X、Y、Z）上都有足够的旋转角度变化。
-- 例如，旋转角度最好能超过30度，这样能提供丰富的运动信息。
-
-2. **多样化运动姿态：**
-
-- 采集数据时，保证机器人末端执行多样化的姿态变化，包括平移和旋转。
-- 避免只在小范围内运动或只在某一轴上运动。
-
-3. **增加数据采集次数：**
-
-- 采集更多的样本数据，一般来说，至少需要10组以上不同的姿态数据。
-- 更多的数据能提高标定的稳定性和准确性。
-
-## 手眼标定结果如何使用
+Hand-eye calibration requires the robot to perform a series of movements in space to accurately determine the camera’s pose relative to the robot’s end-effector. If the robot’s motion data lacks sufficient rotational variation, particularly significant rotations along each axis, the calibration algorithm cannot accurately compute the hand-eye relationship.
 
 
+**Solution：**
 
-机械臂如何捡取物品？
+1. **Increase rotational movement：**
 
-### 眼在手上
+- During data collection, make the robot perform larger rotational motions. Ensure sufficient rotation angle variation along all three axes (X, Y, Z).
+- For example, rotation angles should ideally exceed 30 degrees to provide rich motion information.
 
-#### 理论
+2. **Diversify motion poses: **
 
-从一个**不涉及相机**的机械臂开始。它的两个主要坐标系是：
+- During data capture, ensure the robot’s end-effector executes diverse poses, including translation and rotation.
+- Avoid moving only within a small range or along a single axis.
 
-​	1.机械臂基坐标系
 
-   2.末端执行器坐标系
+3. **Increase data collection samples：**
+
+- Collect more sample data; generally, at least 10 different poses are needed.
+- More data improves calibration stability and accuracy.
+
+## How to Use Hand-Eye Calibration Results
+
+How does the robot arm pick up objects?
+
+### Eye-in-Hand
+
+#### Theory
+
+Start from a robot arm without involving the camera. Its two main coordinate systems are:
+
+​	1.Robot arm base coordinate system
+
+   2.End-effector coordinate system
 
 ![../../../_images/hand-eye-robot-ee-robot-base-coordinate-systems.png](picture/hand-eye-robot-ee-robot-base-coordinate-systems-17301939637152.png)
 
@@ -636,60 +630,60 @@ python compute_to_hand.py
 
 
 
-为了捡取物品，机械臂需要知道**物品相对于机械臂基坐标系**的位姿。通过这些信息以及机器人相关的几何知识，即可算出末端执行器/夹具朝物体移动的关节角度。
+To pick up an object, the robot arm needs to know the pose of the object relative to the robot arm base coordinate system. Using this information along with the robot’s geometric knowledge, the joint angles for moving the end-effector/gripper toward the object can be calculated.
 
 ![../../../_images/hand-eye-robot-robot-to-object.png](picture/hand-eye-robot-robot-to-object.png)
 
-**物体相对相机坐标系的位姿**可以通过**模型识别**得到，为了使机械臂能够拾取物体，需要将物体的位姿从**相机的坐标系**转换到**机械臂的基坐标系**。
+The pose of the object relative to the camera coordinate system can be obtained through model recognition. To allow the robot arm to grasp the object, the object’s pose must be transformed from the camera coordinate system to the robot arm base coordinate system.
 
 ![../../../_images/hand-eye-robot-ee-robot-base-coordinate-systems-with-camera.png](picture/hand-eye-robot-ee-robot-base-coordinate-systems-with-camera.png)
 
-在这种情况下，坐标转换是间接完成的：
+In this case, the coordinate transformation is done indirectly:
 
 $$ H^{ROB}{OBJ} = H^{ROB}{EE} \cdot H^{EE}{CAM} \cdot H^{CAM}{OBJ} $$
 
-末端执行器相对于机械臂基座的位姿
+The pose of the end-effector relative to the robot base
 
 $$H^{ROB}_{EE}$$
 
-是已知的，通过机械臂API可以获取得到，相机相对于末端执行器的位姿
+is known and can be obtained via the robot arm API; the pose of the camera relative to the end-effector
 
 $$H^{EE}_{CAM}$$
 
-由手眼标定得到。
+is obtained through hand-eye calibration.
 
 ![img](picture/hand-eye-eye-in-hand-all-poses.png)
 
 
 
-假如物体在相机坐标系是一个3D点或者一个位姿，那么下面说明物体位置作为一个3D点或者一个位姿**从相机坐标系转换到机械臂基坐标系**的数学理论。
+If the object is represented as a 3D point or a pose in the camera coordinate system, the following explains how to mathematically transform the object’s position as a 3D point or pose from the camera coordinate system to the robot arm base coordinate system.
 
 ![../../../_images/hand-eye-eye-in-hand-all-poses.png](picture/hand-eye-eye-in-hand-all-poses-17302010389227.png)
 
-机械臂的位姿用齐次变换矩阵表示。
+The robot arm’s poses are expressed as homogeneous transformation matrices.
 
-以下方程描述了如何将单个3D点从相机坐标系转换到机械臂基坐标系：
+The following equation describes how to transform a single 3D point from the camera coordinate system to the robot arm base coordinate system:
 
 $$ p^{ROB} = H^{ROB}{EE} \cdot H^{EE}{CAM} \cdot p^{CAM} $$
 
 $$ \begin{bmatrix} x^r \\\ y^r \\\ z^r \\\ 1 \end{bmatrix} = \begin{bmatrix} R_e^r & t_e^r \\\ 0 & 1 \end{bmatrix} \cdot \begin{bmatrix} R_c^e & t_c^e \\\ 0 & 1 \end{bmatrix} \cdot \begin{bmatrix} x^c \\\ y^c \\\ z^c \\\ 1 \end{bmatrix} $$
 
-如果要将物体位姿从相机坐标系转换到机械臂基坐标系。
+If transforming the object’s pose from the camera coordinate system to the robot arm base coordinate system:
 
 $$ H^{ROB}{OBJ} = H^{ROB}{EE} \cdot H^{EE} {CAM} \cdot H^{CAM} {OBJ} $$
 
 $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_e^r & t_e^r \\\ 0 & 1 \end{bmatrix} \cdot \begin{bmatrix} R_c^e & t_c^e \\\ 0 & 1 \end{bmatrix} \cdot \begin{bmatrix} R_o^c & t_o^c \\\ 0 & 1 \end{bmatrix} $$
 
 
-​	由此产生的位姿是机械臂当前工具坐标系圆心应该达到的位姿进行捡取。(标定时采集的机械臂位姿也是当前工具坐标系相对于机械臂基坐标系位姿)
+​	The resulting pose corresponds to the pose the robot’s current tool coordinate frame center should reach to perform the pick operation. (The robot poses collected during calibration are also the poses of the current tool coordinate frame relative to the robot base coordinate system.)
 
 
 
-#### 代码
+#### Code
 
 
 
-- 物体在相机坐标系是一个3D点（x,y,z)
+- The object is a 3D point (x, y, z) in the camera coordinate system
 
   ```python
   
@@ -697,7 +691,7 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_e^r
   from scipy.spatial.transform import Rotation as R
   
   
-  # 相机坐标系到机械臂末端坐标系的旋转矩阵和平移向量（手眼标定得到）
+  # Rotation matrix and translation vector from camera coordinate system to robot end-effector coordinate system (obtained by hand-eye calibration)
   rotation_matrix = np.array([[-0.00235395 , 0.99988123 ,-0.01523124],
                               [-0.99998543, -0.00227965, 0.0048937],
                               [0.00485839, 0.01524254, 0.99987202]])
@@ -706,26 +700,27 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_e^r
   
   def convert(x ,y ,z ,x1 ,y1 ,z1 ,rx ,ry ,rz):
       """
-      我们需要将手眼标定得到旋转向量和平移向量转换为齐次变换矩阵，然后使用深度相机识别到的物体坐标（x, y, z）和
-      机械臂末端的位姿（x1,y1,z1,rx,ry,rz）来计算物体相对于机械臂基座的位姿（x, y, z）
+          We need to convert the rotation vector and translation vector obtained by hand-eye calibration into a homogeneous transformation matrix, then use the object coordinates (x, y, z) recognized by the depth camera and the robot end-effector pose (x1,y1,z1,rx,ry,rz) to calculate the object's pose relative to the robot base (x, y, z).
+
   
       """
   
   
   
-      # 深度相机识别物体返回的坐标
+     # Coordinates of the object recognized by the depth camera
+
       obj_camera_coordinates = np.array([x, y, z])
   
-      # 机械臂末端的位姿，单位为弧度
+      # Robot end-effector pose, in radians
       end_effector_pose = np.array([x1, y1, z1,
                                     rx, ry, rz])
   
-      # 将旋转矩阵和平移向量转换为齐次变换矩阵
+      # Convert rotation matrix and translation vector into homogeneous transformation matrix
       T_camera_to_end_effector = np.eye(4)
       T_camera_to_end_effector[:3, :3] = rotation_matrix
       T_camera_to_end_effector[:3, 3] = translation_vector
   
-      # 机械臂末端的位姿转换为齐次变换矩阵
+      # Convert robot end-effector pose to homogeneous transformation matrix
       position = end_effector_pose[:3]
       orientation = R.from_euler('xyz', end_effector_pose[3:], degrees=False).as_matrix()
   
@@ -733,7 +728,7 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_e^r
       T_base_to_end_effector[:3, :3] = orientation
       T_base_to_end_effector[:3, 3] = position
   
-      # 计算物体相对于机械臂基座的位姿
+      # Calculate the object's pose relative to the robot base
       obj_camera_coordinates_homo = np.append(obj_camera_coordinates, [1])  # 将物体坐标转换为齐次坐标
   
       obj_end_effector_coordinates_homo = T_camera_to_end_effector.dot(obj_camera_coordinates_homo)
@@ -750,7 +745,7 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_e^r
 
   
 
-- 物体在相机坐标系是一个位姿
+-The object is a pose in the camera coordinate system
 
   ```python
   
@@ -758,7 +753,8 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_e^r
   from scipy.spatial.transform import Rotation as R
   
   
-  # 相机坐标系到机械臂末端坐标系的旋转矩阵和平移向量（手眼标定得到）
+  # Rotation matrix and translation vector from camera coordinate system to robot end-effector coordinate system (obtained by hand-eye calibration)
+
   rotation_matrix = np.array([[-0.00235395 , 0.99988123 ,-0.01523124],
                               [-0.99998543, -0.00227965, 0.0048937],
                               [0.00485839, 0.01524254, 0.99987202]])
@@ -767,7 +763,7 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_e^r
   
   def decompose_transform(matrix):
       """
-      将矩阵转化为位姿
+      Convert matrix to pose
       """
   
       translation = matrix[:3, 3]
@@ -793,26 +789,25 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_e^r
   
       """
   
-      我们需要将标定得到的旋转向量和平移向量转换为齐次变换矩阵，然后使用机械臂末端的位姿(x, y, z,rx,ry,rz）和
-     深度相机识别到的物体坐标（x1,y1,z1,rx1,ry1,rz1）来计算物体相对于机械臂基座的位姿
+      We need to convert the rotation vector and translation vector obtained by calibration into a homogeneous transformation matrix, then use the robot end-effector pose (x, y, z,rx,ry,rz) and the object coordinates recognized by the depth camera (x1,y1,z1,rx1,ry1,rz1) to calculate the object's pose relative to the robot base
   
       """
   
   
   
-      # 深度相机识别物体返回的坐标
+      # Object coordinates recognized by the depth camera
       obj_camera_coordinates = np.array([x1, y1, z1,rx1,ry1,rz1])
   
-      # 机械臂末端的位姿，单位为弧度
+      # Robot end-effector pose, in radians
       end_effector_pose = np.array([x, y, z,
                                     rx, ry, rz])
   
-      # 将旋转矩阵和平移向量转换为齐次变换矩阵
+      # Convert rotation matrix and translation vector into homogeneous transformation matrix
       T_camera_to_end_effector = np.eye(4)
       T_camera_to_end_effector[:3, :3] = rotation_matrix
       T_camera_to_end_effector[:3, 3] = translation_vector
   
-      # 机械臂末端的位姿转换为齐次变换矩阵
+      # Convert robot end-effector pose to homogeneous transformation matrix
       position = end_effector_pose[:3]
       orientation = R.from_euler('xyz', end_effector_pose[3:], degrees=False).as_matrix()
   
@@ -820,10 +815,10 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_e^r
       T_end_to_base_effector[:3, :3] = orientation
       T_end_to_base_effector[:3, 3] = position
   
-      # 计算物体相对于机械臂基座的位姿
+      # Calculate the object's pose relative to the robot base
   
   
-      # 物体相对于相机的位姿转换为齐次变换矩阵
+      # Convert object's pose relative to camera into homogeneous transformation matrix
       position2 = obj_camera_coordinates[:3]
       orientation2 = R.from_euler('xyz', obj_camera_coordinates[3:], degrees=False).as_matrix()
   
@@ -848,13 +843,13 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_e^r
   
   
 
-​		   代码中rotation_matrix和translation_vector变量分别是眼在手上**手眼标定**得到的**旋转矩阵**和**平移向量**
+​		   he variables rotation_matrix and translation_vector in the code are the rotation matrix and translation vector obtained by hand-eye calibration with the camera on the robot's end-effector.
 
-### 眼在手外
+### Camera outside the hand
 
-#### 理论
+#### Theory
 
-相机可以通过模型获取物体在相机坐标系的里的位姿，**物体相对于机械臂的位姿**通过相机相对于机械臂基坐标系的位姿和物体相对于相机相机坐标系的位姿通过后乘法计算得到的：
+The camera can obtain the object's pose in the camera coordinate system through the model. The object pose relative to the robot is obtained by multiplying the camera pose relative to the robot base coordinate system and the object's pose relative to the camera coordinate system:
 
 $$ H^{ROB}{OBJ} = H^{ROB}{CAM} \cdot H^{CAM}{OBJ} $$
 
@@ -862,23 +857,23 @@ $$ H^{ROB}{OBJ} = H^{ROB}{CAM} \cdot H^{CAM}{OBJ} $$
 
 
 
-假如物体位置是一个3D点或者一个位姿，那么下面说明物体位置作为一个3D点或者一个位姿**从相机坐标系转换到机械臂基坐标系**的数学理论。
+If the object position is a 3D point or a pose, below describes mathematically how to convert the object's position as a 3D point or pose from the camera coordinate system to the robot base coordinate system.
 
-以下方程描述了如何将单个3D点从相机坐标系转换到机械臂基坐标系：
+The following equation describes how to convert a single 3D point from camera coordinate system to robot base coordinate system：
 
 $$ p^{ROB} = H^{ROB}{CAM} \cdot p^{CAM} $$
 
 $$ \begin{bmatrix} x^r \\\ y^r \\\ z^r \\\ 1 \end{bmatrix} = \begin{bmatrix} R_c^r & t_c^r \\\ 0 & 1 \end{bmatrix} \cdot \begin{bmatrix} x^c \\\ y^c \\\ z^c \ 1 \end{bmatrix} $$
 
-如果要将物体位姿从相机坐标系转换到机械臂基坐标系。
+If you want to convert the object pose from camera coordinate system to robot base coordinate system:
 
 $$ H^{ROB}{OBJ} = H^{ROB}{CAM} \cdot H^{CAM}{OBJ} $$
 
 $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_c^r & t_c^r \\\ 0 & 1 \end{bmatrix} \cdot \begin{bmatrix} R_o^c & t_o^c \\\ 0 & 1 \end{bmatrix} $$
 
-#### 代码
+#### Code
 
-- 物体在相机坐标系是一个3D点（x,y,z)
+- Object is a 3D point (x, y, z) in camera coordinate system
 
   ```python
   
@@ -886,7 +881,8 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_c^r
   
   
   
-  # 相机坐标系到机械臂基坐标系的旋转矩阵和平移向量(手眼标定得到)
+  # Rotation matrix and translation vector from camera coordinate system to robot base coordinate system (obtained by hand-eye calibration)
+
   rotation_matrix = np.array([[-0.00235395 , 0.99988123 ,-0.01523124],
                               [-0.99998543, -0.00227965, 0.0048937],
                               [0.00485839, 0.01524254, 0.99987202]])
@@ -894,32 +890,32 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_c^r
   
   def convert(x ,y ,z):
       """
-      我们需要将旋转向量和平移向量转换为齐次变换矩阵，然后使用深度相机识别到的物体坐标（x, y, z）和
-      标定好的 相机到基座的 齐次变换矩阵 来计算物体相对于机械臂基座的位姿（x, y, z）
+      We need to convert the rotation vector and translation vector into a homogeneous transformation matrix, then use the object coordinates (x, y, z) recognized by the depth camera and the calibrated camera-to-base homogeneous transformation matrix to calculate the object's pose relative to the robot base (x, y, z)
+
   
       """
   
   
   
-      # 深度相机识别物体返回的坐标
+      # Coordinates of the object recognized by the depth camera
       obj_camera_coordinates = np.array([x, y, z])
   
   
-      # 将旋转矩阵和平移向量转换为齐次变换矩阵
+      # Convert rotation matrix and translation vector into homogeneous transformation matrix
       T_camera_to_base_effector = np.eye(4)
       T_camera_to_base_effector[:3, :3] = rotation_matrix
       T_camera_to_base_effector[:3, 3] = translation_vector
   
   
   
-      # 计算物体相对于机械臂基座的位姿
+      # Calculate the object's pose relative to the robot base
       obj_camera_coordinates_homo = np.append(obj_camera_coordinates, [1])  # 将物体坐标转换为齐次坐标
   
       obj_base_effector_coordinates_homo = T_camera_to_base_effector.dot(obj_camera_coordinates_homo)
       obj_base_coordinates = obj_base_effector_coordinates_homo[:3]  # 从齐次坐标中提取物体的x, y, z坐标
   
   
-      # 组合结果
+      # Combine result
   
       return list(obj_base_coordinates)
   
@@ -929,7 +925,7 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_c^r
 
   
 
-- 物体在相机坐标系是一个位姿
+- Object is a pose in camera coordinate system
 
   ```python
   
@@ -937,7 +933,8 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_c^r
   from scipy.spatial.transform import Rotation as R
   
   
-  # 相机坐标系到机械臂基坐标系的旋转矩阵和平移向量（手眼标定得到）
+  # Rotation matrix and translation vector from camera coordinate system to robot base coordinate system (obtained by hand-eye calibration)
+
   rotation_matrix = np.array([[-0.00235395 , 0.99988123 ,-0.01523124],
                               [-0.99998543, -0.00227965, 0.0048937],
                               [0.00485839, 0.01524254, 0.99987202]])
@@ -945,7 +942,7 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_c^r
   
   def decompose_transform(matrix):
       """
-      将矩阵转化为位姿
+      Convert matrix to pose
       """
   
       translation = matrix[:3, 3]
@@ -970,26 +967,26 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_c^r
   
   def convert(x ,y ,z,rx,ry,rz):
       """
-      我们需要将旋转向量和平移向量转换为齐次变换矩阵，然后使用深度相机识别到的物体位姿（x, y, z,rx,ry,rz）和
-      标定好的 相机到基座的 齐次变换矩阵 来计算物体相对于机械臂基座的位姿（x, y, z,rx,ry,rz）
+      We need to convert the rotation vector and translation vector into a homogeneous transformation matrix, then use the object pose (x, y, z,rx,ry,rz) recognized by the depth camera and the calibrated camera-to-base homogeneous transformation matrix to calculate the object's pose relative to the robot base (x, y, z,rx,ry,rz)
+
   
       """
   
   
   
-      # 深度相机识别物体返回的坐标
+      # Coordinates of the object recognized by the depth camera
       obj_camera_coordinates = np.array([x, y, z,rx,ry,rz])
   
   
-      # 将旋转矩阵和平移向量转换为齐次变换矩阵
+      # Convert rotation matrix and translation vector into homogeneous transformation matrix
       T_camera_to_base_effector = np.eye(4)
       T_camera_to_base_effector[:3, :3] = rotation_matrix
       T_camera_to_base_effector[:3, 3] = translation_vector
   
   
   
-      # 计算物体相对于机械臂基座的位姿
-      # 物体相对于相机的位姿转换为齐次变换矩阵
+      # Calculate the object's pose relative to the robot base
+      # Convert object's pose relative to camera into homogeneous transformation matrix
       position2 = obj_camera_coordinates[:3]
       orientation2 = R.from_euler('xyz', obj_camera_coordinates[3:], degrees=False).as_matrix()
   
@@ -1001,12 +998,12 @@ $$ \begin{bmatrix} R_o^r & t_o^r \\\ 0 & 1 \end{bmatrix} = \begin{bmatrix} R_c^r
   
   	result = decompose_transform(obj_base_effector)
   
-      # 组合结果
+      # Combine result
   
       return result
   
   ```
 
-​		代码中rotation_matrix和translation_vector变量分别是眼在手外**手眼标定**得到的**旋转矩阵**和**平移向量**
+​		The variables rotation_matrix and translation_vector in the code are the rotation matrix and translation vector obtained by hand-eye calibration with the camera outside the robot hand.
 
 ### 
