@@ -1,69 +1,81 @@
-## 概述
+## Overview
 
-手眼标定通常用于机器人和计算机视觉领域，特别是在需要精确控制机械臂与环境交互的场景中去，手眼标定是将机械手和摄像机的坐标系统一起来，解决相机与机械手之间的坐标转换关系，让机械手能精确抓取到相机定位的目标。
+Hand-eye calibration is commonly used in robotics and computer vision, especially in scenarios where precise control of a robotic arm interacting with the environment is required. Hand-eye calibration aligns the coordinate systems of the robotic arm (the "hand") and the camera (the "eye"), solving the transformation relationship between the two so that the robotic arm can accurately grasp targets identified by the camera.
 
-手眼系统，是手（机械臂）和眼（相机）的关系，当眼（相机）看到一个物体的时候，需要告诉手（机械臂）物体的位置在哪里，物体在眼（相机）的位置确定了，如果此时有了眼（相机）和手（机械臂）的关系，我们就能得到物体在手（机械臂）的位置了。
+The hand-eye system refers to the relationship between the hand (robotic arm) and the eye (camera). When the camera sees an object, it needs to inform the robotic arm where the object is located. Once the object's position is determined in the camera's coordinate system, and if the relationship between the camera and the robotic arm is known, the object's position in the robotic arm's coordinate system can be obtained.
 
-当需要进行机器人抓取物体、动态环境交互、精密测量与检测、视觉伺服控制等多个场景时，都需要进行手眼标定。
+Hand-eye calibration is essential in various scenarios such as robotic object grasping, interaction in dynamic environments, precision measurement and inspection, and visual servo control.
 
-手眼标定之后，除非相机和机械臂的相对位置发生变动，则不需要重新标定。下面的标定方法适用于**正装、侧装和倒装**。
+Once hand-eye calibration is completed, it does not need to be redone unless there is a change in the relative position between the camera and the robotic arm. The following calibration methods are applicable to upright, side-mounted, and inverted configurations.
 
 
 
-手眼标定有两种情况：
+There are two types of hand-eye calibration scenarios:
 
-- 一种是相机固定在机械臂上
+One is when the camera is mounted on the robotic arm.
 
-​		Eye-in-Hand系统:相机安装在机械臂末端，在机械臂移动过程中随着机械臂一起运动。
-
+Eye-in-Hand System: In this configuration, the camera is installed at the end of the robotic arm and moves along with the arm during its motion.
 ![image](picture/f6c716fb-c8d2-4adc-b3da-a86c6b1e78d0.png)
 
 
 
-- 第二种是相机固定在机械臂之外某处
+The second type is when the camera is fixed somewhere outside the robotic arm.
+
+Eye-to-Hand System: In this configuration, the camera is mounted in a fixed position in the environment, separate from the robotic arm. It observes the workspace from a static viewpoint, and the robotic arm moves independently within the camera's field of view
 
   ​	![44776e79-47f7-4de2-9ef2-172b654169d5](picture/44776e79-47f7-4de2-9ef2-172b654169d5-17291349013411.png)
 
 
 
-## 原理
+## HOW?
 
 ### 1.眼在手上（eye-in-hand)
 
-​		**对于eye-in-hand情况，机器人手眼标定即标定得到相机和机械臂末端之间的坐标变换关系:**
+​		**For the Eye-in-Hand configuration, hand-eye calibration refers to determining the coordinate transformation between the camera and the end-effector (the end of the robotic arm).:**
+
+This transformation enables the system to convert the position of an object detected by the camera into the robotic arm’s coordinate system, allowing accurate and coordinated interaction with the environment.
 
 ![image](picture/f6c716fb-c8d2-4adc-b3da-a86c6b1e78d0.png)
 
-对目标点的空间三维坐标进行变换的过程中，首先遇到的问题就是机械臂末端坐标系与相机坐标系之间的位置变换关系，也就是机械臂的手眼位置关系，也是手眼标定最后计算的结果，该关系用符号X表示，可以用方程AX=XB求解。其中A表示相邻两次运动时**机械臂末端的变换关系**；B表示相邻两次运动时**相机坐标的相对运动**。
+When transforming the 3D spatial coordinates of a target point, the first challenge is determining the position and orientation relationship between the robot end-effector and the camera coordinate system. This relationship is the core result of hand-eye calibration and is denoted by the transformation matrix X. It can be solved using the equation AX = XB:
 
-如图1所示，为眼在手上，也即eye-in-hand。（此处仅是为了演示效果图，而非真实的实验场景）。相机固定在机械臂末端，会随着机械臂的运动而运动。
+- A represents the transformation of the robot end-effector between two different poses (i.e., the relative motion of the end-effector).
+
+- B represents the relative motion of the camera (i.e., how the camera sees its own movement between the same two poses).
+
+
+As shown in Figure 1, this setup is for the Eye-in-Hand configuration. (Note: the figure is for illustration purposes only and not from a real experimental setup.) In this setup, the camera is mounted at the end of the robotic arm and moves along with it。
 
 
 
 ![图1 眼在手上](picture/1b3bb9f5348fe9f1dd4ae02afed614e9.png)
 
-- A：机械臂末端在机械臂坐标系下的位姿，通过机械臂API获取。（已知）。
+- A：The pose of the robot end-effector in the robot’s base coordinate system can be obtained through the robot’s API.。
 
 $$ {}^{base}_{end}M $$
   
-- B：相机在机器人末端坐标系下的位姿，这个变换是固定的，只要知道这个变换，我们就可以随时计算相机的实际位置，所以这就是我们想求的东西。（未知，待求）
+- B：The pose of the camera in the robot end-effector coordinate system is a fixed transformation, meaning it does not change as long as the camera remains rigidly mounted on the end-effector.
+
+  Once this transformation is known, we can compute the camera’s actual position and orientation at any time based on the end-effector's pose.
 
 $$ {}^{end}_{camera}M $$
   
-- C：相机在标定板坐标系下的位姿，这个其实就是求解相机的外参（由相机标定求出）。
+- C：The pose of the camera with respect to the calibration board coordinate system is essentially the camera's extrinsic parameters—that is, the position and orientation of the camera relative to the calibration board。
+
+  This transformation is obtained through camera calibration, specifically by using known patterns (such as a checkerboard) and applying standard extrinsic calibration techniques.
   
 $$ {}^{board}_{camera}M $$
 
-- D：标定板在机器人坐标系下的位姿。在标定过程中，只有机械臂末端在动，标定板和机械臂基座不动，这个位姿关系是固定不变的。
+- D：The pose of the calibration board with respect to the robot base coordinate system is fixed during the calibration process.。
 
 
 $$ {}^{base}_{board}M $$
 
-所以我们只要计算得到B变换，那么标定板在机械臂坐标系下的位姿D也就自然得到了:
+So as long as we can calculate the transformation B, the pose D of the calibration board in the robot arm's coordinate system will naturally be obtained.:
 
 $$ {}^{base}{board}M = {}^{base}{end}M \cdot {}^{end}{camera}M \cdot {}^{camera}{board}M $$
 
-如图2所示，我们让机械臂运动两个位置，保证这两个位置下都可以看到标定板，然后构建空间变换回路：
+As shown in Figure 2, we move the robot arm to two different positions, ensuring that the calibration board is visible from both. Then, we construct a spatial transformation loop.：
 
 ![图2 机械臂运动到两个位置，构建变换回路](picture/29fb4d433468f12530eca3e2a563da72.png)
 
@@ -71,53 +83,53 @@ $$ A_1 \cdot B \cdot C_1^{-1} = A_2 \cdot B \cdot C_2^{-1} $$
 
 $$ \left( A_2^{-1} \cdot A_1 \right) \cdot B = B \cdot \left( C_2^{-1} \cdot C_1 \right) $$
 
-等同于下面的公式：
-
+Which is equivalent to the following equation：
 
 
 $$ {}^{base}{end}M_1 \cdot {}^{end}{camera}M_1 \cdot {}^{camera}{board}M_1 = {}^{base}{end}M_2 \cdot {}^{end}{camera}M_2 \cdot {}^{camera}{board}M_2 $$
 
 $$ \left( {}^{base}{end}M_2 \right)^{-1} \cdot {}^{base}{end}M_1 \cdot {}^{end}{camera}M_1 = {}^{end}{camera}M_2 \cdot {}^{camera}{board}M_2 \cdot \left( {}^{camera}{board}M_1 \right)^{-1} $$
 
-这是一个典型的**AX=XB**问题，而且根据定义，其中X是一个4X4齐次变换矩阵：
+This is a classic **AX=XB** problem，and by definition，X is a 4×4 homogeneous transformation matrix：
 
 $$ X = \begin{bmatrix} R & t \\\ 0 & 1 \end{bmatrix} $$
 
-手眼标定的目的就是为了计算出X
+The goal of hand-eye calibration is to compute X
 
 ​	
-
 ### 2 .眼在手外（eye-to-hand)
 
 ### ![44776e79-47f7-4de2-9ef2-172b654169d5](picture/44776e79-47f7-4de2-9ef2-172b654169d5-17291482180503.png)
 
-**眼在手外**标定时**固定机械臂基座和相机**，将**标定板固定在机械臂末端**，所以标定过程中**标定板与机械臂末端的关系固定不变，以及相机与机器人基座标的关系固定不变**
+**During eye-to-hand calibration, the robot base and the camera are fixed, and the calibration board is mounted on the robot's end-effector. Therefore, during the calibration process, the relationship between the calibration board and the end-effector remains constant, as does the relationship between the camera and the robot base.**
 
-标定的目标：相机到机械臂基座坐标系的变换矩阵
+The goal of the calibration is to determine the transformation matrix from the camera coordinate system to the robot base coordinate system.
 
 $$ {}^{base}_{camera}M $$
 
-实现方法：1.把标定板固定在机械臂末端
+Implementation steps：
 
-​					2.移动机械臂末端，使用相机拍摄不同机械臂姿态下的标定板图片n张 (10~20)
+          1.Fix the calibration board to the end-effector of the robot arm.
 
-每次采集图片和机械臂位姿，都存在下面等式：
+​					2.Move the end-effector and use the camera to capture n images (typically 10–20) of the calibration board at different robot poses.
+
+For each image and corresponding robot pose, the following equation holds:：
 
 $$ {}^{end}{board}M = {}^{end}{base}M \cdot {}^{base}{camera}M \cdot {}^{camera}{board}M $$
 
 
-其中：
+where：
 
-| 符号               | 描述                         |
+| Symbol               | Description                         |
 | ------------------ | ---------------------------- |
-|$$^{end}_{board}M$$  | 标定板到机械臂末端的变换矩阵（因为标定过程中标定板固定在机械臂末端，标定板到机械臂末端的变化矩阵不变） |
-|$${}^{end}_{base}M$$ | 可以通过机械臂末端位姿算出   |
-|$${}^{base}_{camera}M$$ | 手眼标定需要求的             |
-|$${}^{camera}_{board}M$$ | 通过相机标定方法得到         |
+|$$^{end}_{board}M$$  | The transformation matrix from the calibration board to the robot arm’s end-effector (since during calibration the calibration board is fixed to the end-effector, this transformation matrix remains constant). |
+|$${}^{end}_{base}M$$ | It can be calculated from the pose of the robot arm’s end-effector.  |
+|$${}^{base}_{camera}M$$ | What hand-eye calibration needs to solve for             |
+|$${}^{camera}_{board}M$$ | Obtained through camera calibration methods         |
 
 
 
-则可以得到如下等式：
+Then the following equation can be obtained:：
 
 **The Cauchy-Schwarz Inequality**
 
@@ -131,45 +143,45 @@ $$ {}^{end}{base}M_n^{-1} \cdot {}^{end}{base}M_{n-1} \cdot {}^{base}{camera}M{n
 
 
 
-这也是是一个典型的**AX=XB**问题，而且根据定义，其中X是一个4X4齐次变换矩阵，其中R是相机到机械臂基坐标系的旋转矩阵，t是相机到机械臂基坐标系的平移向量：
+This is also a classic **AX=XB** problem. By definition, X is a 4×4 homogeneous transformation matrix, where R is the rotation matrix from the camera to the robot base coordinate system, and t is the translation vector from the camera to the robot base coordinate system.：
 
 $$ X = \begin{bmatrix} R & t \\\ 0 & 1 \end{bmatrix} $$
 
-手眼标定的目的就是为了计算出X。
+The purpose of hand-eye calibration is to calculate X。
 
 
 
-## 关键代码解释
+## Key code explanation
 
-### 代码结构
+### Code structure
 
 ```
----eye_hand_data  眼在手上标定时采集的数据
+---eye_hand_data  Data collected during eye-in-hand calibration
 
 ---libs
 
-​         ---auxiliary.py 程序用到的一些辅助的包
+​         ---auxiliary.py Here are some auxiliary packages used in the program
 
-​         ---log_settings.py 日志包
+​         ---log_settings.py Logging package
 
----robotic_arm_package 机械臂python包
+---robotic_arm_package Robot arm Python package
 
----collect_data.py 手眼标定时采集数据程序
+---collect_data.py Data collection program for eye-in-hand calibration
 
----compute_in_hand.py 眼在手上标定计算程序
+---compute_in_hand.py Calculation program for eye-in-hand calibration
 
----compute_to_hand.py 眼在手外标定计算程序
+---compute_to_hand.py Calculation program for eye-to-hand calibration
 
----requirements.txt 环境依赖文件
+---requirements.txt Environment dependency files
 
----save_poses.py 计算依赖文件
+---save_poses.py Computation dependency files
 
----save_poses2.py 计算依赖文件
+---save_poses2.py Computation dependency files
 ```
 
 
 
-### compute_in_hand.py | compute_to_hand.py关键代码解释
+### compute_in_hand.py | compute_to_hand.py EXPLAIN
 
 #### 1.主函数`func()`
 
