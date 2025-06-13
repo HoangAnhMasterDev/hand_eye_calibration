@@ -11,7 +11,7 @@ import pyrealsense2 as rs
 from libs.log_setting import CommonLog
 from libs.auxiliary import create_folder_with_date, get_ip, popup_message
 
-cam0_origin_path = create_folder_with_date() # 提前建立好的存储照片文件的目录
+cam0_origin_path = create_folder_with_date() # A pre-created directory for storing photo files
 
 
 logger_ = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def callback(frame):
 
     k = cv2.waitKey(30) & 0xFF  # 每帧数据延时 1ms，延时不能为 0，否则读取的结果会是静态帧
 
-    if k == ord('s'):  # 若检测到按键 ‘s’，打印字符串
+    if k == ord('s'):  # If the 's' key is pressed, print the current frame
 
         socket_command = '{"command": "get_current_arm_state"}'
         state,pose = send_cmd(client,socket_command)
@@ -52,19 +52,21 @@ def callback(frame):
     else:
         pass
 
-
+#yolo
 def send_cmd(client, cmd, get_pose=True):
     """
-    发送命令到机械臂并可选择性地获取姿态(pose)数据
+    Send a command to the robot arm and optionally retrieve pose data
 
-    参数:
-    client: socket客户端连接
-    cmd: 要发送的命令字符串或JSON字符串
-    get_pose: 是否需要获取pose数据
 
-    返回:
-    如果get_pose为True，返回tuple (状态, pose或错误信息)
-    如果get_pose为False，返回布尔值表示命令是否成功发送
+    Parameters:
+    client: socket client connection
+    cmd: The command string or JSON string to send
+    get_pose: Whether to retrieve pose data
+
+    Returns:
+    If get_pose is True，returns tuple (status, pose or error message)
+    If get_pose is False, returns a boolean indicating whether the command was successfully sent
+
     """
     client.send(cmd.encode('utf-8'))
 
@@ -130,25 +132,32 @@ def send_cmd(client, cmd, get_pose=True):
     except Exception as e:
         return False, f"处理响应时发生错误: {str(e)}"
 #
-def displayD435():
+def displayL515():
+
+    # CHANGE TO 515 camera
+    #STEP 1: Start the RealSense camera stream
 
     pipeline = rs.pipeline()
     config = rs.config()
-    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
+    ###### what resolution and fps should be set for the camera????? bgr8 or what format?????
+    config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
+
+    # This try: start streaming
     try:
         pipeline.start(config)
     except Exception as e:
-        logger_.error_(f"相机连接异常：{e}")
-        popup_message("提醒", "相机连接异常")
+        logger_.error_(f"Camera connection：{e}")
+        popup_message("Notice", "Camera connection failed")
 
         sys.exit(1)
 
     global count
     count = 1
 
-    logger_.info(f"开始手眼标定程序，当前程序版号V1.0.0")
+    logger_.info(f"Starting hand-eye calibration program with L515 - V1.0.0")
 
+    # This try: wait for frames and process them
     try:
         while True:
             frames = pipeline.wait_for_frames()
@@ -185,4 +194,4 @@ if __name__ == '__main__':
         popup_message("提醒", "机械臂ip没有ping通")
         sys.exit(1)
 
-    displayD435()
+    displayL515()
