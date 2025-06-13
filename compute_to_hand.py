@@ -1,13 +1,13 @@
 # coding=utf-8
 
 """
-眼在手外 用采集到的图片信息和机械臂位姿信息计算 相机坐标系相对于机械臂基坐标系的 旋转矩阵和平移向量
+Eye-to-hand calibration: compute the rotation and translation from the camera coordinate system
+to the robot base coordinate system using images and corresponding robot poses.
 
 """
 
 import os
 import logging
-
 import yaml
 import cv2
 import numpy as np
@@ -23,14 +23,15 @@ np.set_printoptions(precision=8,suppress=True)
 logger_ = logging.getLogger(__name__)
 logger_ = CommonLog(logger_)
 
-
+#setup path
 current_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"eye_hand_data")
 
 images_path = os.path.join("eye_hand_data",find_latest_data_folder(current_path))
 
-file_path = os.path.join(images_path,"poses.txt")  #采集标定板图片时对应的机械臂末端的位姿 从 第一行到最后一行 需要和采集的标定板的图片顺序进行对应
+file_path = os.path.join(images_path,"poses.txt")  #When capturing images of the calibration board, 
+#the corresponding poses of the robot's end-effector must match the order of the images — from the first line to the last line
 
-
+#read checkerboard parameters from config.yaml
 with open("config.yaml", 'r', encoding='utf-8') as file:
     data = yaml.safe_load(file)
 
@@ -43,20 +44,21 @@ def func():
     path = os.path.dirname(__file__)
     print(path)
 
-    # 设置寻找亚像素角点的参数，采用的停止准则是最大循环次数30和最大误差容限0.001
+    # Set the parameters for finding sub-pixel corner points, using the stopping criteria of a maximum of 30 iterations and an error tolerance of 0.001
     criteria = (cv2.TERM_CRITERIA_MAX_ITER | cv2.TERM_CRITERIA_EPS, 30, 0.001)
 
-    # 获取标定板角点的位置
+    # Get the positions of the calibration board's corner points.
     objp = np.zeros((XX * YY, 3), np.float32)
-    objp[:, :2] = np.mgrid[0:XX, 0:YY].T.reshape(-1, 2)     # 将世界坐标系建在标定板上，所有点的Z坐标全部为0，所以只需要赋值x和y
+    objp[:, :2] = np.mgrid[0:XX, 0:YY].T.reshape(-1, 2)     # Set the world coordinate system on the calibration board — since all points lie on a plane, 
+                                                            #their Z-coordinates are all 0, so only the x and y values need to be assigned
     objp = L*objp
 
-    obj_points = []     # 存储3D点
-    img_points = []     # 存储2D点
+    obj_points = []     # Store 3D points
+    img_points = []     # Store 2D points
 
     images_num = [f for f in os.listdir(images_path) if f.endswith('.jpg')]
 
-    for i in range(1, len(images_num) + 1):   #标定好的图片在images_path路径下，从0.jpg到x.jpg
+    for i in range(1, len(images_num) + 1):   #The calibrated images are located in the images_path directory, named from 0.jpg to x.jpg.
 
         image_file = os.path.join(images_path,f"{i}.jpg")
 
@@ -74,7 +76,7 @@ def func():
 
                 obj_points.append(objp)
 
-                corners2 = cv2.cornerSubPix(gray, corners, (5, 5), (-1, -1), criteria)  # 在原角点的基础上寻找亚像素角点
+                corners2 = cv2.cornerSubPix(gray, corners, (5, 5), (-1, -1), criteria)  # Refine the original corner points to sub-pixel accuracy based on the initial detected corners.
                 if [corners2]:
                     img_points.append(corners2)
                 else:
@@ -82,7 +84,7 @@ def func():
 
     N = len(img_points)
 
-    # 标定,得到图案在相机坐标系下的位姿
+    # Calibrate to obtain the pose of the pattern in the camera coordinate system.
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(obj_points, img_points, size, None, None)
 
     # logger_.info(f"内参矩阵:\n:{mtx}" ) # 内参数矩阵
@@ -91,7 +93,7 @@ def func():
     print("-----------------------------------------------------")
 
     poses2_main(file_path)
-    # 机器人末端在基座标系下的位姿
+    # save the pose of the robot's end-effector in the base coordinate system
 
     csv_file = os.path.join(path,"RobotToolPose.csv")
     tool_pose = np.loadtxt(csv_file,delimiter=',')
