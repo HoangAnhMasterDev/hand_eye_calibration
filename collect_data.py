@@ -41,10 +41,10 @@ def callback(frame):
 
     if k == ord('s'):  # If the 's' key is pressed, print the current frame
 
-        socket_command = '{"command": "get_current_arm_state"}'
-        # state,pose = send_cmd(client,socket_command)
         state, pose = get_ur10_tcp_pose()
         logger_.info( f'Get status: {"Success" if state else "Failure"}, {f"Current pose is {pose}" if state else None}')
+
+        #saving the pose
         if state:
 
             filename = os.path.join(cam0_origin_path,"poses.txt")
@@ -56,6 +56,7 @@ def callback(frame):
                 # Append the new line to the end of the file
                 f.write(new_line)
 
+            #saving the image
             image_path = os.path.join(cam0_origin_path,f"{str(count)}.jpg")
             cv2.imwrite(image_path , cv_img)
             logger_.info(f"===Collecting data for {count}th time！")
@@ -125,8 +126,6 @@ def displayL515():
 if __name__ == '__main__':
 
     robot_ip = get_ip()
-
-
 
     logger_.info(f'robot_ip:{robot_ip}')
 

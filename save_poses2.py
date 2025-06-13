@@ -1,7 +1,19 @@
 """
-眼在手外 计算得是 相机相对于基座得 齐次变换矩阵
+In an eye-to-hand setup, what we compute is the homogeneous transformation matrix from the camera to the robot base.
 
-基座相对于机械臂末端得齐次变换矩阵 == 机械臂末端相对于基座得齐次变换矩阵得逆 （也就是机械臂位姿变换得齐次变换矩阵得逆）
+The transformation from the robot base to the robot end-effector is equal to the inverse of the transformation,
+from the robot end-effector to the base (which is what we get from the robot’s pose data).
+
+This code does:
+
+    1. Reads the robot poses from a text file (poses.txt),
+
+    2. Converts those poses (position + Euler angles) into homogeneous transformation matrices,
+
+    3. Inverts those matrices to get the robot base to end-effector transform (as needed),
+
+    4. And saves all these matrices into a CSV file (RobotToolPose.csv).
+
 
 """
 
@@ -9,7 +21,7 @@ import csv
 import numpy as np
 
 
-# 打开文本文件
+# Open text file containing the robot poses
 def poses2_main(tag):
 
 

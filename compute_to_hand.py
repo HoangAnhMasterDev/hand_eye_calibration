@@ -87,8 +87,6 @@ def func():
     # Calibrate to obtain the pose of the checkerboard in the camera coordinate system.
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(obj_points, img_points, size, None, None)
 
-    # logger_.info(f"内参矩阵:\n:{mtx}" ) # 内参数矩阵
-    # logger_.info(f"畸变系数:\n:{dist}")  # 畸变系数   distortion cofficients = (k_1,k_2,p_1,p_2,k_3)
 
     print("-----------------------------------------------------")
 
