@@ -35,9 +35,9 @@ file_path = os.path.join(images_path,"poses.txt")  #When capturing images of the
 with open("config.yaml", 'r', encoding='utf-8') as file:
     data = yaml.safe_load(file)
 
-XX = data.get("checkerboard_args").get("XX") #标定板的中长度对应的角点的个数
-YY = data.get("checkerboard_args").get("YY") #标定板的中宽度对应的角点的个数
-L = data.get("checkerboard_args").get("L")   #标定板一格的长度  单位为米
+XX = data.get("checkerboard_args").get("XX") 
+YY = data.get("checkerboard_args").get("YY") 
+L = data.get("checkerboard_args").get("L")   
 
 def func():
 
@@ -84,7 +84,7 @@ def func():
 
     N = len(img_points)
 
-    # Calibrate to obtain the pose of the pattern in the camera coordinate system.
+    # Calibrate to obtain the pose of the checkerboard in the camera coordinate system.
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(obj_points, img_points, size, None, None)
 
     # logger_.info(f"内参矩阵:\n:{mtx}" ) # 内参数矩阵
